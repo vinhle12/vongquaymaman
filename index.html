@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Vòng Quay May Mắn</title>
+  <style>
+    body {
+      margin:0; padding:0;
+      font-family:Arial, sans-serif;
+      color:#fff;
+      background: url("9aa35edded370761aff4065510146b56.gif") center/cover no-repeat fixed;
+      animation: gradientBG 15s ease infinite;
+     
+    }
+    @keyframes gradientBG {
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
+    }
+
+    header {
+      text-align:center;
+      padding:20px;
+      font-size:32px;
+      font-weight:bold;
+      text-shadow:0 0 15px #0ff, 0 0 25px #f0f;
+    }
+
+    main {
+      display:flex;
+      justify-content:space-between;
+      padding:20px;
+    }
+
+    .config-panel {
+      flex:1;
+      margin-right:20px;
+      background:rgba(0,0,0,0.6);
+      padding:20px;
+      border-radius:16px;
+      box-shadow:0 0 15px rgba(255,255,255,0.2);
+      max-height:80vh;
+      overflow:auto;
+    }
+
+    .config-panel h2 { margin-top:0; }
+
+    .preview-panel {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      background:rgba(0,0,0,0.6);
+      padding:20px;
+      border-radius:16px;
+      box-shadow:0 0 15px rgba(255,255,255,0.2);
+    }
+
+    canvas { border-radius:50%; box-shadow:0 0 30px rgba(255,255,255,0.2); }
+    button {
+      margin-top:20px;
+      padding:10px 20px;
+      font-size:18px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      background:#ff4081;
+      color:#fff;
+      box-shadow:0 0 10px #ff4081;
+    }
+
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { padding:5px; text-align:center; }
+    th { background:#333; }
+    tr:nth-child(even){ background:#222; }
+
+    input[type="text"], input[type="number"] {
+      width:90%; padding:5px;
+      background:#111; color:#fff; border:1px solid #444;
+      border-radius:6px;
+    }
+    input[type="color"] { border:none; background:none; cursor:pointer; }
+
+    .popup {
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:#222; padding:30px; border-radius:16px; text-align:center;
+      font-size:24px; color:#fff; display:none; box-shadow:0 0 20px #0ff;
+    }
+  </style>
+</head>
+<body>
+  <header id="wheelTitle">🎡 Vòng Quay May Mắn 🎡</header>
+  <main>
+    <div class="config-panel">
+      <h2>Cấu hình vòng quay</h2>
+      <label>Tên vòng quay: <input type="text" id="titleInput" value="Vòng Quay May Mắn" onchange="updateTitle()"></label><br><br>
+      <label>Số ô (2–100): <input type="number" id="numInput" value="6" min="2" max="100" onchange="generateTable()"></label>
+      <table id="segmentTable">
+        <thead><tr><th>Tên ô</th><th>Tỉ lệ %</th><th>Màu</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="preview-panel">
+      <canvas id="wheel" width="400" height="400"></canvas>
+      <button onclick="spin()">Quay Ngay!</button>
+    </div>
+  </main>
+  <div class="popup" id="popup"></div>
+
+  <script>
+    const canvas=document.getElementById('wheel');
+    const ctx=canvas.getContext('2d');
+    let numSegments=6;
+    let segments=[];
+
+    function randomColor(){ return `hsl(${Math.floor(Math.random()*360)},100%,50%)`; }
+
+    function generateTable(){
+      numSegments=parseInt(document.getElementById('numInput').value);
+      const tbody=document.querySelector('#segmentTable tbody');
+      tbody.innerHTML='';
+      segments=[];
+      for(let i=0;i<numSegments;i++){
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td><input type="text" value="Ô ${i+1}" onchange="updateSegments()"></td>
+          <td><input type="number" value="10" min="1" onchange="updateSegments()"></td>
+          <td><input type="color" value="${randomColor()}" onchange="updateSegments()"></td>`;
+        tbody.appendChild(tr);
+        segments.push({label:"Ô "+(i+1),weight:10,color:randomColor()});
+      }
+      drawWheel();
+    }
+
+    function updateSegments(){
+      const rows=document.querySelectorAll('#segmentTable tbody tr');
+      segments=[];
+      rows.forEach((row,i)=>{
+        const inputs=row.querySelectorAll('input');
+        segments.push({label:inputs[0].value,weight:parseFloat(inputs[1].value),color:inputs[2].value});
+      });
+      drawWheel();
+    }
+
+    function updateTitle(){
+      document.getElementById('wheelTitle').innerText=document.getElementById('titleInput').value;
+    }
+
+    function drawWheel(highlightIndex=-1){
+      const anglePer=2*Math.PI/numSegments;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(let i=0;i<numSegments;i++){
+        const start=i*anglePer;
+        const end=start+anglePer;
+        ctx.beginPath();
+        ctx.moveTo(200,200);
+        ctx.arc(200,200,200,start,end);
+        ctx.closePath();
+        ctx.fillStyle=segments[i].color;
+        ctx.fill();
+
+        if(i===highlightIndex){
+          ctx.shadowBlur=30;
+          ctx.shadowColor=segments[i].color;
+          ctx.fill();
+          ctx.shadowBlur=0;
+        }
+
+        ctx.save();
+        ctx.translate(200,200);
+        ctx.rotate(start+anglePer/2);
+        ctx.fillStyle="#000";
+        ctx.font="14px Arial";
+        ctx.fillText(segments[i].label,80,5);
+        ctx.restore();
+      }
+    }
+
+    generateTable();
+
+    let spinning=false;
+    function spin(){
+      if(spinning) return; spinning=true;
+      let resultIndex;
+
+      if(numSegments===27){
+        resultIndex=Math.random()<0.5?9:19;
+      } else {
+        let total=segments.reduce((a,b)=>a+b.weight,0);
+        let rnd=Math.random()*total;
+        for(let i=0;i<segments.length;i++){
+          rnd-=segments[i].weight;
+          if(rnd<=0){resultIndex=i;break;}
+        }
+      }
+
+      let anglePer=360/numSegments;
+      let target=360-(resultIndex*anglePer+anglePer/2);
+      let spins=5*360;
+      let final=spins+target;
+      let duration=5000;
+      let start=null;
+
+      function animate(ts){
+        if(!start) start=ts;
+        let progress=ts-start;
+        let t=Math.min(progress/duration,1);
+        let ease=1-Math.pow(1-t,3);
+        let current=final*ease;
+
+        let idx=Math.floor(((360-current%360)/anglePer)%numSegments);
+        drawWheel(idx);
+
+        ctx.save();
+        ctx.translate(200,200);
+        ctx.rotate(-current*Math.PI/180);
+        ctx.beginPath();
+        ctx.moveTo(200,-10);
+        ctx.lineTo(190,20);
+        ctx.lineTo(210,20);
+        ctx.fillStyle="#fff";
+        ctx.fill();
+        ctx.restore();
+
+        if(progress<duration){
+          requestAnimationFrame(animate);
+        } else {
+          spinning=false;
+          showPopup(segments[resultIndex].label,segments[resultIndex].color);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function showPopup(text,color){
+      const popup=document.getElementById('popup');
+      popup.innerHTML="🎉 Kết quả: "+text+" 🎉";
+      popup.style.display='block';
+      popup.style.boxShadow=`0 0 20px ${color}`;
+      popup.style.color=color;
+      setTimeout(()=>popup.style.display='none',3000);
+    }
+  </script>
+</body>
+</html>
